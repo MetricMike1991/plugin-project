@@ -166,10 +166,6 @@ const scene = new THREE.Scene();
  */
 const gui = new GUI();
 
-// Hide GUI by default
-gui.domElement.style.display = 'none';
-let guiVisible = false;
-
 // GUI parameters for gradient background
 const params = {
     gradientTop: '#ff0000',    // Red at top
@@ -277,10 +273,8 @@ const defaultMaterial = new THREE.MeshStandardMaterial({
 // scene.add(axesHelper);
 
 // ---------------------------------------------
-// 8. Load and Animate GLB Model
+// 8. Load and Animate GLB Model (with Exercise Dropdown)
 // ---------------------------------------------
-// Animation mixer and clock for model animations
-
 let mixer = null;
 const clock = new THREE.Clock();
 let button7Mesh = null;
@@ -288,276 +282,71 @@ let button7OriginalMaterial = null;
 let button7Action = null;
 let sceneAction = null;
 let allClickableMeshes = [];
-let modelFolder; // Declare at the top level for GUI folder
+let modelFolder;
 let loose20kgMesh = null;
 let loose20kgOriginalMaterial = null;
 let loose20kgGlowActive = true;
 
-// Model URLs for dropdown
-const modelUrls = {
-  deadlift: 'https://FlexFrame.b-cdn.net/02.%20Deadlift%20GLB%20Final.glb',
-  overhead: 'https://FlexFrame.b-cdn.net/03.%20Overhead%20press%20GLB.glb'
-};
+// ---------------------------------------------
+// 8. Load Overhead Press GLB Model (single model, no dropdown)
+// ---------------------------------------------
+// ...existing code...
+// (Variables already declared above)
 
-// Reference to dropdown
-const modelDropdown = document.getElementById('modelDropdown');
-
-// Model loader function (refactored from previous gltfLoader.load)
-function loadModel(url) {
-    // Fade out previous model if present
-    if (window.model) {
-        fadeOutAndRemoveModel(window.model, () => {
-            removeModelAndFolders();
-            actuallyLoadModel(url);
-        });
-        return; // Don't continue, will call actuallyLoadModel after fade
-    } else {
-        removeModelAndFolders();
-        actuallyLoadModel(url);
-    }
-    return;
-    // Helper to remove model and folders
-    function removeModelAndFolders() {
-        if (window.model) {
-            scene.remove(window.model);
-            window.model.traverse(child => {
-                if (child.isMesh) child.geometry.dispose();
-            });
-            window.model = null;
-        }
-        if (modelFolder) {
-            modelFolder.destroy();
-            modelFolder = null;
-        }
-        if (gui.__folders && gui.__folders['Animation']) {
-            gui.__folders['Animation'].destroy();
-        }
-        allClickableMeshes = [];
-        loose20kgMesh = null;
-        loose20kgOriginalMaterial = null;
-        loose20kgGlowActive = true;
-        mixer = null;
-    }
-    // Helper to fade out and remove
-    function fadeOutAndRemoveModel(model, onComplete) {
-        let meshes = [];
-        model.traverse(child => {
-            if (child.isMesh) {
-                // Store original opacity and transparent
-                if (child.material) {
-                    if (child.material._origOpacity === undefined) {
-                        child.material._origOpacity = child.material.opacity;
-                    }
-                    if (child.material._origTransparent === undefined) {
-                        child.material._origTransparent = child.material.transparent;
-                    }
-                    child.material.transparent = true;
-                }
-                meshes.push(child);
-            }
-        });
-        gsap.to(meshes.map(m => m.material), {
-            opacity: 0,
-            duration: 0.5,
-            onComplete: onComplete
-        });
-    }
-    // Helper to fade in
-    function fadeInModel(model) {
-        let meshes = [];
-        model.traverse(child => {
-            if (child.isMesh) {
-                if (child.material) {
-                    // Store original if not already
-                    if (child.material._origOpacity === undefined) {
-                        child.material._origOpacity = child.material.opacity;
-                    }
-                    if (child.material._origTransparent === undefined) {
-                        child.material._origTransparent = child.material.transparent;
-                    }
-                    child.material.transparent = true;
-                    child.material.opacity = 0;
-                }
-                meshes.push(child);
-            }
-        });
-        gsap.to(meshes.map(m => m.material), {
-            opacity: function(i, target) {
-                return target._origOpacity !== undefined ? target._origOpacity : 1;
-            },
-            duration: 0.5,
-            onComplete: function() {
-                // Restore original opacity and transparent
-                meshes.forEach(child => {
-                    if (child.material) {
-                        if (child.material._origOpacity !== undefined) {
-                            child.material.opacity = child.material._origOpacity;
-                        }
-                        if (child.material._origTransparent !== undefined) {
-                            child.material.transparent = child.material._origTransparent;
-                        }
-                    }
-                });
-            }
-        });
-    }
-    // Actual model loading logic
-    function actuallyLoadModel(url) {
-        gltfLoader.load(
-            url,
-            (gltf) => {
-                window.model = gltf.scene;
-                model = window.model;
-                model.traverse((child) => {
-                    if (child.isMesh) {
-                        allClickableMeshes.push(child);
-                        if (child.name === 'button-7') {
-                            button7Mesh = child;
-                            button7OriginalMaterial = child.material.clone();
-                        }
-                        if (child.name === 'Loose_20kg013_COLOR_1_0') {
-                            loose20kgMesh = child;
-                            loose20kgOriginalMaterial = child.material.clone();
-                        }
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
-
-                // Apply default model transform if present
-                if (defaultSettings.model) {
-                    if (defaultSettings.model.position) model.position.fromArray(defaultSettings.model.position);
-                    if (defaultSettings.model.rotation) model.rotation.set(
-                        defaultSettings.model.rotation[0],
-                        defaultSettings.model.rotation[1],
-                        defaultSettings.model.rotation[2]
-                    );
-                    if (defaultSettings.model.scale) model.scale.fromArray(defaultSettings.model.scale);
-                } else {
-                    model.position.set(0, 0, 0);
-                }
-                scene.add(model);
-
-                // Add dat.GUI controls for model transform
-                modelFolder = gui.addFolder('Model Transform');
-                const pos = model.position;
-                const rot = model.rotation;
-                const scl = model.scale;
-                modelFolder.add(pos, 'x', -1, 1, 0.002).name('Position X');
-                modelFolder.add(pos, 'y', -1, 1, 0.002).name('Position Y');
-                modelFolder.add(pos, 'z', -1, 1, 0.002).name('Position Z');
-                modelFolder.add(rot, 'x', -1, 1, 0.002).name('Rotation X');
-                modelFolder.add(rot, 'y', -1, 1, 0.002).name('Rotation Y');
-                modelFolder.add(rot, 'z', -1, 1, 0.002).name('Rotation Z');
-                modelFolder.add(scl, 'x', 0.01, 1, 0.001).name('Scale X');
-                modelFolder.add(scl, 'y', 0.01, 1, 0.001).name('Scale Y');
-                modelFolder.add(scl, 'z', 0.01, 1, 0.001).name('Scale Z');
-                modelFolder.open();
-
-                // Smooth, continuous pulse for Loose_20kg013_COLOR_1_0 until clicked
-                if (loose20kgMesh) {
-                    const originalEmissive = loose20kgMesh.material.emissive ? loose20kgMesh.material.emissive.clone() : new THREE.Color(0x000000);
-                    const originalEmissiveIntensity = loose20kgMesh.material.emissiveIntensity !== undefined ? loose20kgMesh.material.emissiveIntensity : 1;
-                    const flashColor = new THREE.Color(0xff0000); // bright red
-                    let startTime = null;
-                    // Pulse duration is 50% slower (original: 2000/3 ~666ms, now ~1000ms per pulse)
-                    const pulseDuration = (2000 / 3) * 1.5; // ~1000ms per pulse
-                    function animatePulse(time) {
-                        if (!loose20kgGlowActive) {
-                            // Restore original
-                            loose20kgMesh.material.emissive = originalEmissive;
-                            loose20kgMesh.material.emissiveIntensity = originalEmissiveIntensity;
-                            loose20kgMesh.material.needsUpdate = true;
-                            return;
-                        }
-                        if (!startTime) startTime = time;
-                        const elapsed = (time - startTime) % pulseDuration;
-                        // Ease in/out using sine
-                        const t = elapsed / pulseDuration;
-                        const ease = 0.2 * (0.5 - 0.5 * Math.cos(Math.PI * 2 * t)); // 0 to 0.2 smoothly
-                        loose20kgMesh.material.emissive = flashColor;
-                        loose20kgMesh.material.emissiveIntensity = ease;
-                        loose20kgMesh.material.needsUpdate = true;
-                        requestAnimationFrame(animatePulse);
-                    }
-                    requestAnimationFrame(animatePulse);
-                }
-
-                if (Array.isArray(gltf.animations) && gltf.animations.length > 0) {
-                    mixer = new THREE.AnimationMixer(model);
-                    // Use the first animation clip by default
-                    const mainClip = gltf.animations[0];
-                    let mainAction = mixer.clipAction(mainClip);
-                    mainAction.play();
-
-                    // Animation GUI controls
-                    const animFolder = gui.addFolder('Animation');
-                    let isPlaying = true;
-                    let animTime = 0;
-                    const duration = mainClip.duration;
-
-                    // Play/Pause button
-                    animFolder.add({Play_Pause: () => {
-                        isPlaying = !isPlaying;
-                        if (isPlaying) {
-                            mainAction.paused = false;
-                        } else {
-                            mainAction.paused = true;
-                        }
-                    }}, 'Play_Pause').name('Play/Pause');
-
-                    // Scrubber slider
-                    animFolder.add({Scrub: 0}, 'Scrub', 0, duration, 0.01).name('Scrub').onChange(val => {
-                        animTime = val;
-                        mainAction.time = animTime;
-                        mixer.update(0); // force update
-                        mainAction.paused = true;
-                        isPlaying = false;
-                    });
-                    animFolder.open();
-
-                    // Animation update in tick
-                    const origTick = tick;
-                    tick = function() {
-                        if (mixer && isPlaying) {
-                            const delta = clock.getDelta();
-                            mixer.update(delta);
-                        }
-                        controls.update();
-                        renderer.render(scene, camera);
-                        requestAnimationFrame(tick);
-                    };
-                }
-                // Fade in new model
-                fadeInModel(model);
-            },
-            undefined,
-            (error) => {
-                console.error('An error happened while loading the GLB model:', error);
-            }
-        );
-    }
-    if (modelFolder) {
-        modelFolder.destroy();
-        modelFolder = null;
-    }
-    if (gui.__folders && gui.__folders['Animation']) {
-        gui.__folders['Animation'].destroy();
+function loadOverheadPressModel() {
+    const modelPath = 'https://FlexFrame.b-cdn.net/03.%20Overhead%20press%20GLB.glb';
+    if (window.model && scene.children.includes(window.model)) {
+        scene.remove(window.model);
     }
     allClickableMeshes = [];
-    loose20kgMesh = null;
-    loose20kgOriginalMaterial = null;
-    loose20kgGlowActive = true;
     mixer = null;
-
     gltfLoader.load(
-        url,
+        modelPath,
         (gltf) => {
             window.model = gltf.scene;
             model = window.model;
             model.traverse((child) => {
                 if (child.isMesh) {
                     allClickableMeshes.push(child);
+                    // Upgrade to MeshPhysicalMaterial for better PBR
+                    const oldMat = child.material;
+                    child.material = new THREE.MeshPhysicalMaterial({
+                        color: oldMat.color,
+                        roughness: oldMat.roughness,
+                        metalness: oldMat.metalness,
+                        map: oldMat.map || null,
+                        normalMap: oldMat.normalMap || null,
+                        roughnessMap: oldMat.roughnessMap || null,
+                        metalnessMap: oldMat.metalnessMap || null,
+                        aoMap: oldMat.aoMap || null,
+                        transmission: oldMat.transmission !== undefined ? oldMat.transmission : 0.0,
+                        ior: oldMat.ior !== undefined ? oldMat.ior : 1.5,
+                        clearcoat: 1.0,
+                        clearcoatRoughness: 0.1,
+                        envMap: scene.environment || null,
+                        envMapIntensity: 1.0,
+                        opacity: oldMat.opacity !== undefined ? oldMat.opacity : 1.0,
+                        transparent: oldMat.transparent || false,
+                        side: oldMat.side !== undefined ? oldMat.side : THREE.FrontSide,
+                    });
+                    child.material.needsUpdate = true;
+                    // Apply default material settings to Object_244
+                    if (child.name === 'Object_244') {
+                        child.material.color.set('#0b3b7a');
+                        child.material.metalness = 0;
+                        child.material.roughness = 0.78;
+                        child.material.clearcoat = 1;
+                        child.material.clearcoatRoughness = 0.91;
+                        child.material.opacity = 0.25;
+                        child.material.transparent = true;
+                        child.material.depthWrite = false;
+                        child.material.alphaTest = 0.21;
+                        child.material.premultipliedAlpha = false;
+                        child.material.ior = 2.5;
+                        child.material.transmission = 1;
+                        child.material.side = THREE.FrontSide;
+                        child.material.needsUpdate = true;
+                    }
                     if (child.name === 'button-7') {
                         button7Mesh = child;
                         button7OriginalMaterial = child.material.clone();
@@ -585,7 +374,8 @@ function loadModel(url) {
             }
             scene.add(model);
 
-            // Add dat.GUI controls for model transform
+            // Add lil-gui controls for model transform
+            if (modelFolder) gui.removeFolder(modelFolder);
             modelFolder = gui.addFolder('Model Transform');
             const pos = model.position;
             const rot = model.rotation;
@@ -607,11 +397,9 @@ function loadModel(url) {
                 const originalEmissiveIntensity = loose20kgMesh.material.emissiveIntensity !== undefined ? loose20kgMesh.material.emissiveIntensity : 1;
                 const flashColor = new THREE.Color(0xff0000); // bright red
                 let startTime = null;
-                // Pulse duration is 50% slower (original: 2000/3 ~666ms, now ~1000ms per pulse)
-                const pulseDuration = (2000 / 3) * 1.5; // ~1000ms per pulse
+                const pulseDuration = (2000 / 3) * 1.5;
                 function animatePulse(time) {
                     if (!loose20kgGlowActive) {
-                        // Restore original
                         loose20kgMesh.material.emissive = originalEmissive;
                         loose20kgMesh.material.emissiveIntensity = originalEmissiveIntensity;
                         loose20kgMesh.material.needsUpdate = true;
@@ -619,9 +407,8 @@ function loadModel(url) {
                     }
                     if (!startTime) startTime = time;
                     const elapsed = (time - startTime) % pulseDuration;
-                    // Ease in/out using sine
                     const t = elapsed / pulseDuration;
-                    const ease = 0.2 * (0.5 - 0.5 * Math.cos(Math.PI * 2 * t)); // 0 to 0.2 smoothly
+                    const ease = 0.2 * (0.5 - 0.5 * Math.cos(Math.PI * 2 * t));
                     loose20kgMesh.material.emissive = flashColor;
                     loose20kgMesh.material.emissiveIntensity = ease;
                     loose20kgMesh.material.needsUpdate = true;
@@ -632,18 +419,15 @@ function loadModel(url) {
 
             if (Array.isArray(gltf.animations) && gltf.animations.length > 0) {
                 mixer = new THREE.AnimationMixer(model);
-                // Use the first animation clip by default
                 const mainClip = gltf.animations[0];
                 let mainAction = mixer.clipAction(mainClip);
                 mainAction.play();
 
-                // Animation GUI controls
                 const animFolder = gui.addFolder('Animation');
                 let isPlaying = true;
                 let animTime = 0;
                 const duration = mainClip.duration;
 
-                // Play/Pause button
                 animFolder.add({Play_Pause: () => {
                     isPlaying = !isPlaying;
                     if (isPlaying) {
@@ -652,18 +436,15 @@ function loadModel(url) {
                         mainAction.paused = true;
                     }
                 }}, 'Play_Pause').name('Play/Pause');
-
-                // Scrubber slider
                 animFolder.add({Scrub: 0}, 'Scrub', 0, duration, 0.01).name('Scrub').onChange(val => {
                     animTime = val;
                     mainAction.time = animTime;
-                    mixer.update(0); // force update
+                    mixer.update(0);
                     mainAction.paused = true;
                     isPlaying = false;
                 });
                 animFolder.open();
 
-                // Animation update in tick
                 const origTick = tick;
                 tick = function() {
                     if (mixer && isPlaying) {
@@ -683,17 +464,8 @@ function loadModel(url) {
     );
 }
 
-// Listen for dropdown changes
-modelDropdown.addEventListener('change', (e) => {
-  if (e.target.value === 'deadlift') {
-    loadModel(modelUrls.deadlift);
-  } else if (e.target.value === 'overhead') {
-    loadModel(modelUrls.overhead);
-  }
-});
-
-// Initial model load based on dropdown value
-loadModel(modelUrls[modelDropdown.value]);
+// Load Overhead Press model on startup
+loadOverheadPressModel();
 
 // ---------------------------------------------
 // 9. Responsive Sizing
@@ -902,7 +674,7 @@ scene.add(ground);
 
 let useShadowMaterial = false;
 
-// guiVisible is now set to false by default above
+let guiVisible = true;
 const groundFolder = gui.addFolder('Ground Plane');
 const groundParams = {
     mode: 'Solid', // or 'Infinite Canvas',
@@ -1113,27 +885,39 @@ const defaultSettings = {
         "intensity": 0.4,
         "color": "#ffffff"
     },
-            "camera": {
-                "position": [
-                    -0.6450775424242561,
-                    1.0270608985067986,
-                    1.3768823659363898
-                ],
-                "rotation": [
-                    -0.1834766569889727,
-                    -0.4990036325009956,
-                    -0.08856930361831791
-                ],
-                "target": [
-                    0.17131388299899059,
-                    0.7537633027898458,
-                    -0.0959151054330899
-                ]
-            },
+    "camera": {
+        "position": [
+            0.7788427366535067,
+            1.2796037689779762,
+            1.203285858394318
+        ],
+        "rotation": [
+            -0.2879971241739497,
+            0.44040948503657873,
+            0.1256219950639305
+        ],
+        "target": [
+            0.1432008954563797,
+            0.8965139871775103,
+            -0.08991905215865692
+        ]
+    },
     "model": {
-        "position": [0, -0.02, 0],
-        "rotation": [0, 0, 0],
-        "scale": [1, 1, 1]
+        "position": [
+            0,
+            -0.02,
+            0
+        ],
+        "rotation": [
+            0,
+            0,
+            0
+        ],
+        "scale": [
+            1,
+            1,
+            1
+        ]
     }
 };
 
@@ -1210,3 +994,143 @@ if (defaultSettings.camera) {
     );
     controls.update();
 }
+
+// ---------------------------------------------
+// Material Test GUI (for last clicked mesh)
+// ---------------------------------------------
+let lastClickedMesh = null; // Track the last clicked mesh
+
+// Update last clicked mesh and material test parameters
+function updateMeshTestParams(mesh) {
+    lastClickedMesh = mesh;
+    if (mesh && mesh.material) {
+        meshTestParams.color = '#' + mesh.material.color.getHexString();
+        meshTestParams.metalness = mesh.material.metalness !== undefined ? mesh.material.metalness : 0.5;
+        meshTestParams.roughness = mesh.material.roughness !== undefined ? mesh.material.roughness : 0.5;
+        meshTestParams.opacity = mesh.material.opacity !== undefined ? mesh.material.opacity : 1;
+        meshTestParams.depthWrite = mesh.material.depthWrite !== undefined ? mesh.material.depthWrite : true;
+        meshTestParams.alphaTest = mesh.material.alphaTest !== undefined ? mesh.material.alphaTest : 0;
+        meshTestParams.premultipliedAlpha = mesh.material.premultipliedAlpha !== undefined ? mesh.material.premultipliedAlpha : false;
+        // Always render transparent mesh after opaque objects to minimize dark overlap
+        mesh.renderOrder = 1;
+    } else {
+        meshTestParams.color = '#ffffff';
+        meshTestParams.metalness = 0.5;
+        meshTestParams.roughness = 0.5;
+        meshTestParams.opacity = 1;
+        meshTestParams.depthWrite = true;
+        meshTestParams.alphaTest = 0;
+        meshTestParams.premultipliedAlpha = false;
+    }
+}
+
+// Mesh material test parameters
+const meshTestParams = {
+    color: '#ffffff',
+    metalness: 0.5,
+    roughness: 0.5,
+    opacity: 0.5,
+    depthWrite: true,
+    alphaTest: 0,
+    premultipliedAlpha: false,
+    ior: 1.0,
+    transmission: 0.0,
+    side: 'Front', // 'Front', 'Back', 'Double'
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.1,
+};
+const meshTestFolder = gui.addFolder('Material Test');
+meshTestFolder.addColor(meshTestParams, 'color').name('Color').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material) {
+        lastClickedMesh.material.color.set(val);
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'metalness', 0, 1, 0.01).name('Metalness').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material && 'metalness' in lastClickedMesh.material) {
+        lastClickedMesh.material.metalness = val;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'roughness', 0, 1, 0.01).name('Roughness').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material && 'roughness' in lastClickedMesh.material) {
+        lastClickedMesh.material.roughness = val;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'clearcoat', 0, 1, 0.01).name('Clearcoat').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material && 'clearcoat' in lastClickedMesh.material) {
+        lastClickedMesh.material.clearcoat = val;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'clearcoatRoughness', 0, 1, 0.01).name('Clearcoat Roughness').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material && 'clearcoatRoughness' in lastClickedMesh.material) {
+        lastClickedMesh.material.clearcoatRoughness = val;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'opacity', 0, 1, 0.01).name('Opacity').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material) {
+        lastClickedMesh.material.opacity = val;
+        lastClickedMesh.material.transparent = true;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'depthWrite').name('Depth Write').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material) {
+        lastClickedMesh.material.depthWrite = val;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'alphaTest', 0, 0.5, 0.01).name('Alpha Test').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material) {
+        lastClickedMesh.material.alphaTest = val;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'premultipliedAlpha').name('Premultiplied Alpha').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material) {
+        lastClickedMesh.material.premultipliedAlpha = val;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'ior', 1.0, 2.5, 0.01).name('Refraction (IOR)').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material && 'ior' in lastClickedMesh.material) {
+        lastClickedMesh.material.ior = val;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'transmission', 0, 1, 0.01).name('Transmission').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material && 'transmission' in lastClickedMesh.material) {
+        lastClickedMesh.material.transmission = val;
+        lastClickedMesh.material.transparent = true;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.add(meshTestParams, 'side', ['Front', 'Back', 'Double']).name('Face Culling').onChange(val => {
+    if (lastClickedMesh && lastClickedMesh.material) {
+        if (val === 'Front') lastClickedMesh.material.side = THREE.FrontSide;
+        else if (val === 'Back') lastClickedMesh.material.side = THREE.BackSide;
+        else lastClickedMesh.material.side = THREE.DoubleSide;
+        lastClickedMesh.material.needsUpdate = true;
+    }
+});
+meshTestFolder.close();
+
+// Update mesh test parameters on mesh click
+canvas.addEventListener('pointerdown', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(allClickableMeshes, true);
+    if (intersects.length > 0) {
+        const mesh = intersects[0].object;
+        // Update material test parameters for the clicked mesh
+        updateMeshTestParams(mesh);
+    }
+});
