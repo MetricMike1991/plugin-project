@@ -10,8 +10,8 @@ Author: MetricMike1991
 function wp3dv_shortcode($atts) {
     $color = get_option('wp3dv_color', '#ff0000');
     $iframe_url = 'https://plugin-project.vercel.app'; // Vercel app URL
-    return '<div style="border:2px solid ' . esc_attr($color) . '; position:relative; width:100vw; height:100vh; margin:0; padding:0; box-sizing:border-box;">'
-        . '<iframe src="' . esc_url($iframe_url) . '" style="border:none; width:100vw; height:100vh; position:absolute; top:0; left:0;" allowfullscreen></iframe>'
+    return '<div style="border:2px solid ' . esc_attr($color) . '; padding:10px;">'
+        . '<iframe src="' . esc_url($iframe_url) . '" width="600" height="400" style="border:none;"></iframe>'
         . '</div>';
 }
 add_shortcode('wp3dviewer', 'wp3dv_shortcode');
