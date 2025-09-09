@@ -44,50 +44,6 @@ if ( ! function_exists( 'w3_fs' ) ) {
 }
 
 
-<?php
-/*
-Plugin Name: WP 3D
-Description: Embed a 3D Viewer or Vercel app via shortcode. Includes a basic settings page with a color picker.
-Version: 0.1
-Author: MetricMike1991
-*/
-
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
-if ( function_exists( 'w3_fs' ) ) {
-    w3_fs()->set_basename( true, __FILE__ );
-} else {
-    if ( ! function_exists( 'w3_fs' ) ) {
-        // Freemius integration snippet
-        function w3_fs() {
-            global $w3_fs;
-            if ( ! isset( $w3_fs ) ) {
-                require_once dirname( __FILE__ ) . '/vendor/freemius/start.php';
-                $w3_fs = fs_dynamic_init( array(
-                    'id'                  => '20648',
-                    'slug'                => 'wp-3d',
-                    'type'                => 'plugin',
-                    'public_key'          => 'pk_386359d72a70a19723e7dbd13ddf0',
-                    'is_premium'          => true,
-                    'premium_suffix'      => 'Premium',
-                    'has_premium_version' => true,
-                    'has_addons'          => false,
-                    'has_paid_plans'      => true,
-                    'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
-                    'menu'                => array(
-                        'support'        => false,
-                    ),
-                ) );
-            }
-            return $w3_fs;
-        }
-        w3_fs();
-        do_action( 'w3_fs_loaded' );
-    }
-}
-
 // Register shortcode
 function wp3dv_shortcode($atts) {
     $color = get_option('wp3dv_color', '#ff0000');
@@ -134,16 +90,6 @@ function wp3dv_options_page() {
     ?>
     <div class="wrap">
         <h1>WP 3D Viewer Settings</h1>
-        <?php
-        // Freemius premium status check
-        $is_premium = false;
-        if ( function_exists('w3_fs') ) {
-            $is_premium = w3_fs()->is_premium();
-        }
-        ?>
-        <div style="margin-bottom:20px; padding:10px; border:1px solid #ccc; background:#f9f9f9;">
-            <strong>License Status:</strong> <?php echo $is_premium ? '<span style="color:green;">Premium (Authenticated)</span>' : '<span style="color:red;">Free (Not Authenticated)</span>'; ?>
-        </div>
         <form action="options.php" method="post">
             <?php
             settings_fields('wp3dv');

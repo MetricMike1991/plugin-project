@@ -134,16 +134,6 @@ function wp3dv_options_page() {
     ?>
     <div class="wrap">
         <h1>WP 3D Viewer Settings</h1>
-        <?php
-        // Freemius premium status check
-        $is_premium = false;
-        if ( function_exists('w3_fs') ) {
-            $is_premium = w3_fs()->is_premium();
-        }
-        ?>
-        <div style="margin-bottom:20px; padding:10px; border:1px solid #ccc; background:#f9f9f9;">
-            <strong>License Status:</strong> <?php echo $is_premium ? '<span style="color:green;">Premium (Authenticated)</span>' : '<span style="color:red;">Free (Not Authenticated)</span>'; ?>
-        </div>
         <form action="options.php" method="post">
             <?php
             settings_fields('wp3dv');
