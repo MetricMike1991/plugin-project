@@ -1138,7 +1138,7 @@ canvas.addEventListener('pointerdown', (event) => {
 // --- Test: Fetch premium status from WP REST API and log result ---
 async function testPremiumStatus() {
     try {
-        const response = await fetch('https://michaels1255.sg-host.com/wp-json/wp3d/v1/premium');
+        const response = await fetch('http://michaels1255.sg-host.com/wp-json/wp3d/v1/premium');
         const data = await response.json();
         console.log('WP Premium Status:', data);
         // Optionally display on screen for testing
