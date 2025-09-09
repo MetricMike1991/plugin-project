@@ -1,26 +1,4 @@
 <?php
-
-
-// TEST API JSON Return using http://michaels1255.sg-host.com/wp-json/wp3d/v1/premium
-// REST API endpoint to check premium status
-add_action('rest_api_init', function () {
-    register_rest_route('wp3d/v1', '/premium', array(
-        'methods' => 'GET',
-        'callback' => 'wp3dv_rest_check_premium',
-        'permission_callback' => '__return_true', // For dev/testing; restrict in production!
-    ));
-});
-
-function wp3dv_rest_check_premium($request) {
-    $is_premium = false;
-    if ( function_exists('w3_fs') && w3_fs() ) {
-        $is_premium = w3_fs()->is_premium();
-    }
-    return array(
-        'premium' => $is_premium,
-    );
-}
-
 /*
 Plugin Name: WP 3D Viewer
 Description: Embed a 3D Viewer or Vercel app via shortcode. Includes a basic settings page with a color picker and Freemius licensing.
