@@ -293,44 +293,6 @@ let loose20kgGlowActive = true;
 // ...existing code...
 // (Variables already declared above)
 
-// --- Fetch WP settings (premium status and Object_244 color) and apply if premium ---
-let wpSettings = { premium: false, object244Color: '#0b3b7a' };
-
-async function fetchWPSettingsAndApply() {
-    try {
-        // Fetch settings from WP REST API (update endpoint if needed)
-        const response = await fetch('https://michaels1255.sg-host.com/wp-json/wp3d/v1/settings');
-        const data = await response.json();
-        wpSettings = data;
-        console.log('WP Settings:', wpSettings);
-        // Optionally display on screen for testing
-        const statusDiv = document.createElement('div');
-        statusDiv.textContent = 'WP Premium Status: ' + (wpSettings.premium ? 'Premium' : 'Free');
-        statusDiv.style.position = 'fixed';
-        statusDiv.style.top = '10px';
-        statusDiv.style.right = '10px';
-        statusDiv.style.background = '#fff';
-        statusDiv.style.color = wpSettings.premium ? 'green' : 'red';
-        statusDiv.style.padding = '8px 16px';
-        statusDiv.style.zIndex = 9999;
-        statusDiv.style.border = '2px solid ' + (wpSettings.premium ? 'green' : 'red');
-        document.body.appendChild(statusDiv);
-    } catch (err) {
-        console.error('Error fetching WP settings:', err);
-    }
-}
-
-// Call fetchWPSettingsAndApply on load
-window.addEventListener('DOMContentLoaded', fetchWPSettingsAndApply);
-
-// --- Apply WP color to Object_244 if premium ---
-function applyObject244ColorIfPremium(child) {
-    if (child.name === 'Object_244' && wpSettings.premium && wpSettings.object244Color) {
-        child.material.color.set(wpSettings.object244Color);
-        child.material.needsUpdate = true;
-    }
-}
-
 function loadOverheadPressModel() {
     const modelPath = 'https://FlexFrame.b-cdn.net/03.%20Overhead%20press%20GLB.glb';
     if (window.model && scene.children.includes(window.model)) {
@@ -370,6 +332,7 @@ function loadOverheadPressModel() {
                     child.material.needsUpdate = true;
                     // Apply default material settings to Object_244
                     if (child.name === 'Object_244') {
+                        child.material.color.set('#0b3b7a');
                         child.material.metalness = 0;
                         child.material.roughness = 0.78;
                         child.material.clearcoat = 1;
@@ -382,8 +345,7 @@ function loadOverheadPressModel() {
                         child.material.ior = 2.5;
                         child.material.transmission = 1;
                         child.material.side = THREE.FrontSide;
-                        // Only set color if premium
-                        applyObject244ColorIfPremium(child);
+                        child.material.needsUpdate = true;
                     }
                     if (child.name === 'button-7') {
                         button7Mesh = child;
