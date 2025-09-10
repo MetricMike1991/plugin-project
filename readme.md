@@ -248,6 +248,31 @@ Works in all modern browsers that support WebGL.
 
 ---
 
+
+// //WordPress Plugin:
+
+// Added a file upload field to your plugin’s settings page.
+// When you upload an image, WordPress stores it and saves the URL in the plugin settings.
+// REST API (PHP):
+
+// Your plugin exposes a REST API endpoint (e.g., /wp-json/wp3d/v1/settings).
+// This endpoint returns the plugin settings, including the uploaded image’s URL.
+// Vercel App (JavaScript):
+
+// Your JS app fetches the REST API endpoint to get the latest settings (including the image URL).
+// When the GLB model loads, your JS code looks for specific mesh names in the scene.
+// For each matching mesh, JS uses Three.js’s TextureLoader to load the image from the URL and apply it as a texture to the mesh’s material.
+// CORS Handling:
+
+// The JS code uses setCrossOrigin('anonymous') to allow cross-origin image loading.
+// This only works if the WordPress server sends the correct CORS headers for the image file.
+// Summary:
+// You created a workflow where a user uploads an image in WP, the image URL is exposed via REST API, and your Vercel JS app fetches and applies that image as a texture to specific meshes in the GLB model.
+
+// Let me know if you want more detail on any step!
+
+
+
 Built with ❤️ using Three.js
 
 
