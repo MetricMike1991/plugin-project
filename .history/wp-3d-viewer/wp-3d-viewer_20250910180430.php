@@ -409,8 +409,3 @@ add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'wp3dv_action_lin
 add_action('init', function () {
     add_rewrite_rule('^media-proxy$', 'index.php?media-proxy=1', 'top');
 });
-/**
- * =====================================================================
- * === END OF FILE
- * =====================================================================
- */
