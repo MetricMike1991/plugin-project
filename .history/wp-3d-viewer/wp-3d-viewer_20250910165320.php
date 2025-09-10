@@ -1,4 +1,44 @@
 <?php
+
+
+// TEST API JSON Return using http://michaels1255.sg-host.com/wp-json/wp3d/v1/premium
+// REST API endpoint to check premium status
+add_action('rest_api_init', function () {
+    register_rest_route('wp3d/v1', '/premium', array(
+        'methods' => 'GET',
+        'callback' => 'wp3dv_rest_check_premium',
+        'permission_callback' => '__return_true', // For dev/testing; restrict in production!
+    ));
+    register_rest_route('wp3d/v1', '/settings', array(
+        'methods' => 'GET',
+        'callback' => 'wp3dv_rest_get_settings',
+        'permission_callback' => '__return_true',
+    ));
+});
+function wp3dv_rest_check_premium($request) {
+    $is_premium = false;
+    if ( function_exists('w3_fs') && w3_fs() ) {
+        $is_premium = w3_fs()->is_premium();
+    }
+    return array(
+        'premium' => $is_premium,
+    );
+}
+
+function wp3dv_rest_get_settings($request) {
+    $is_premium = false;
+    if ( function_exists('w3_fs') && w3_fs() ) {
+        $is_premium = w3_fs()->is_premium();
+    }
+    $object244_color = get_option('wp3dv_color', '#0b3b7a');
+    $material_image = get_option('wp3dv_material_image', '');
+    return array(
+        'premium' => $is_premium,
+        'object244Color' => $object244_color,
+        'materialImage' => $material_image,
+    );
+}
+
 /*
 Plugin Name: WP 3D Viewer
 Description: Embed a 3D Viewer or Vercel app via shortcode. Includes a basic settings page with a color picker and Freemius licensing.
@@ -7,45 +47,6 @@ Author: MetricMike1991
 */
 
 defined('ABSPATH') || exit;
-
-/**
- * REST API: /wp-json/wp3d/v1/premium and /wp-json/wp3d/v1/settings
- */
-add_action('rest_api_init', function () {
-    register_rest_route('wp3d/v1', '/premium', array(
-        'methods'             => 'GET',
-        'callback'            => 'wp3dv_rest_check_premium',
-        'permission_callback' => '__return_true', // For dev/testing; restrict in production!
-    ));
-    register_rest_route('wp3d/v1', '/settings', array(
-        'methods'             => 'GET',
-        'callback'            => 'wp3dv_rest_get_settings',
-        'permission_callback' => '__return_true',
-    ));
-});
-
-function wp3dv_rest_check_premium($request) {
-    $is_premium = false;
-    if ( function_exists('w3_fs') && w3_fs() ) {
-        $is_premium = w3_fs()->is_premium();
-    }
-    return array('premium' => $is_premium);
-}
-
-function wp3dv_rest_get_settings($request) {
-    $is_premium     = false;
-    if ( function_exists('w3_fs') && w3_fs() ) {
-        $is_premium = w3_fs()->is_premium();
-    }
-    $object244_color = get_option('wp3dv_color', '#0b3b7a');
-    $material_image  = get_option('wp3dv_material_image', '');
-
-    return array(
-        'premium'       => $is_premium,
-        'object244Color'=> $object244_color,
-        'materialImage' => $material_image,
-    );
-}
 
 /**
  * Freemius Bootstrap (folder must match 'slug')
@@ -68,8 +69,11 @@ if ( ! function_exists('w3_fs') ) {
                     'has_premium_version' => true,
                     'has_addons'          => false,
                     'has_paid_plans'      => true,
+                    // If you're not distributing via wp.org builder, you can remove the next line.
                     'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
-                    'menu'                => array('support' => false),
+                    'menu'                => array(
+                        'support' => false,
+                    ),
                 ));
             } else {
                 $w3_fs = null; // SDK missing; degrade gracefully
@@ -92,15 +96,16 @@ if ( ! function_exists('w3_fs') ) {
 }
 
 /**
- * Shortcode: [wp3dviewer url="https://..."]
+ * Shortcode: [wp3dviewer]
+ * Renders a full-viewport iframe bordered with selected color.
  */
 function wp3dv_shortcode($atts) {
     $atts = shortcode_atts(array(
-        'url' => 'https://plugin-project.vercel.app',
+        'url' => 'https://plugin-project.vercel.app', // allow override via shortcode attr
     ), $atts, 'wp3dviewer');
 
-    $color       = get_option('wp3dv_color', '#ff0000');
-    $iframe_url  = $atts['url'];
+    $color = get_option('wp3dv_color', '#ff0000');
+    $iframe_url = $atts['url'];
 
     $style_wrapper = sprintf(
         'border:2px solid %1$s; position:relative; width:100vw; height:100vh; margin:0; padding:0; box-sizing:border-box;',
@@ -108,9 +113,9 @@ function wp3dv_shortcode($atts) {
     );
     $style_iframe = 'border:none; width:100vw; height:100vh; position:absolute; top:0; left:0;';
 
-    return '<div style="' . esc_attr($style_wrapper) . '">' .
-           '<iframe src="' . esc_url($iframe_url) . '" style="' . esc_attr($style_iframe) . '" allowfullscreen></iframe>' .
-           '</div>';
+    return '<div style="' . $style_wrapper . '">' .
+         '<iframe src="' . esc_url($iframe_url) . '" style="' . esc_attr($style_iframe) . '" allowfullscreen></iframe>' .
+         '</div>';
 }
 add_shortcode('wp3dviewer', 'wp3dv_shortcode');
 
@@ -121,7 +126,7 @@ function wp3dv_add_admin_menu() {
     add_options_page(
         'WP 3D Viewer Settings',
         'WP 3D Viewer',
-        'manage_options',
+        'manage_options',        // keep admin-only
         'wp3dv',
         'wp3dv_options_page'
     );
@@ -131,6 +136,7 @@ add_action('admin_menu', 'wp3dv_add_admin_menu');
 /**
  * Settings Registration
  */
+// ...existing code...
 function wp3dv_settings_init() {
     register_setting('wp3dv', 'wp3dv_color');
     register_setting('wp3dv', 'wp3dv_material_image');
@@ -149,7 +155,6 @@ function wp3dv_settings_init() {
         'wp3dv',
         'wp3dv_section'
     );
-
     add_settings_field(
         'wp3dv_material_image',
         __('Material Image', 'wp3dv'),
@@ -160,6 +165,7 @@ function wp3dv_settings_init() {
 }
 add_action('admin_init', 'wp3dv_settings_init');
 
+// ...existing code...
 function wp3dv_color_render() {
     $color = get_option('wp3dv_color', '#ff0000');
     echo '<input type="text" name="wp3dv_color" value="' . esc_attr($color) . '" class="wp-color-picker-field" data-default-color="#ff0000" />';
@@ -168,24 +174,25 @@ function wp3dv_color_render() {
 function wp3dv_material_image_render() {
     $image_url = get_option('wp3dv_material_image', '');
     echo '<input type="text" id="wp3dv_material_image" name="wp3dv_material_image" value="' . esc_attr($image_url) . '" style="width:60%" />';
-    echo ' <input type="button" class="button" value="Upload Image" id="wp3dv_material_image_upload" />';
+    echo '<input type="button" class="button" value="Upload Image" id="wp3dv_material_image_upload" />';
     if ($image_url) {
         echo '<div style="margin-top:10px;"><img src="' . esc_url($image_url) . '" style="max-width:200px; max-height:200px;" /></div>';
     }
+}
 }
 
 /**
  * Settings Page Output
  */
-function wp3dv_options_page() {
-    $is_premium = false;
-    if ( function_exists('w3_fs') && w3_fs() ) {
-        $is_premium = w3_fs()->is_premium();
-    }
     ?>
     <div class="wrap">
         <h1>WP 3D Viewer Settings</h1>
-
+        <?php
+        $is_premium = false;
+        if ( function_exists('w3_fs') && w3_fs() ) {
+            $is_premium = w3_fs()->is_premium();
+        }
+        ?>
         <div style="margin-bottom:20px; padding:10px; border:1px solid #ccc; background:#f9f9f9;">
             <strong>License Status:</strong>
             <?php echo $is_premium ? '<span style="color:green;">Premium (Authenticated)</span>' : '<span style="color:red;">Free (Not Authenticated)</span>'; ?>
@@ -197,10 +204,11 @@ function wp3dv_options_page() {
             </form>
             <script>
             function w3_fs_test_checkout() {
+                // Prefer Freemius Checkout if SDK injected it
                 if (typeof window['FS'] !== 'undefined' && window['FS'].Checkout) {
                     window['FS'].Checkout.open({
                         plugin_id: '20648',
-                        plan_id: 1,
+                        plan_id: 1, // Replace with your test plan ID
                         public_key: 'pk_386359d72a70a19723e7dbd13ddf0',
                         is_test: true
                     });
@@ -249,8 +257,12 @@ function wp3dv_options_page() {
 }
 
 /**
- * Enqueue color picker + media on our settings screen only
+ * Enqueue color picker assets on our settings screen only
  */
+    if ($hook_suffix === 'settings_page_wp3dv') {
+        wp_enqueue_style('wp-color-picker');
+        wp_enqueue_script('wp-color-picker');
+    }
 function wp3dv_enqueue_color_picker($hook_suffix) {
     if ($hook_suffix === 'settings_page_wp3dv') {
         wp_enqueue_style('wp-color-picker');
